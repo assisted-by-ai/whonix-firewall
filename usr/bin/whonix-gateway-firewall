@@ -374,7 +374,7 @@ nft_output() {
       if [ "$socks_port_item" = "9108" ]; then
         ## Permit connections to SOCKS_PORT_SDWDATE 9108 even in
         ## 'timesync-fail-closed' mode. Otherwise, sdwdate could never
-        ## succeed and firewall_mode could never change to 'full'.
+        ## succeed and firewall_mode_detected could never change to 'full'.
         continue
       fi
       $nftables_cmd add rule inet filter output ip daddr 127.0.0.1 tcp dport "$socks_port_item" counter reject

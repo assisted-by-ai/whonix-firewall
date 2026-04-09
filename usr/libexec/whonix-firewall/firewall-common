@@ -126,10 +126,12 @@ trap "error_handler" ERR
 
 usage() {
   echo "usage: ${0##*/} [options]
- -s, --source         only source the script
- -n, --dry-run        dry-run, do not load new script
- -i, --info           print informational messages
- -h, --help           print this help message"
+ -s, --source              only source the script
+ -n, --dry-run             dry-run, do not load new script
+ -i, --info                print informational messages
+ -m, --mode full|timesync-fail-closed
+                           override firewall mode for this run
+ -h, --help                print this help message"
 }
 
 # shellcheck disable=SC2034
@@ -147,6 +149,16 @@ get_options(){
       -i | --info)
         info_enabled=1
         shift 1
+        ;;
+      -m | --mode)
+        if [ "${2-}" = "full" ] || [ "${2-}" = "timesync-fail-closed" ]; then
+          firewall_mode="${2}"
+          shift 2
+        else
+          echo "ERROR: --mode requires 'full' or 'timesync-fail-closed'" >&2
+          usage
+          exit 1
+        fi
         ;;
       "") break ;;
       -h | --help | *)
@@ -247,13 +259,12 @@ output_trim() {
 }
 
 firewall_mode_detection() {
-  ## firewall_mode: user configuration setting.
-  ##   "full" (default) - timesync-fail-closed disabled, always full mode.
-  ##   "timesync-fail-closed" - user opt-in to restrict network until
-  ##     sdwdate succeeds. Transitions to full mode automatically.
+  ## firewall_mode: user configuration setting (or --mode CLI override).
+  ##   "full" (default) - Full network access.
+  ##   "timesync-fail-closed" - Restrict network until sdwdate succeeds.
   ##
-  ## firewall_mode_detected: internal runtime state, determined here.
-  ##   This is what all runtime firewall rules check against.
+  ## firewall_mode_detected: internal runtime state determined here.
+  ##   All firewall rules check this variable, not firewall_mode.
 
   if [ "${firewall_mode}" = "timesync-fail-closed" ]; then
     ## User opted in to timesync-fail-closed mode.
