@@ -55,7 +55,7 @@ common_variables_defaults_post(){
   [ -n "${NO_REJECT_INVALID_OUTGOING_PACKAGES:-}" ] || NO_REJECT_INVALID_OUTGOING_PACKAGES=""
   [ -n "${VPN_INTERFACE:-}" ] || VPN_INTERFACE="tun0"
   [ -n "${firewall_allow_udp:-}" ] || firewall_allow_udp=""
-  [ -n "${firewall_mode:-}" ] || firewall_mode=""
+  [ -n "${firewall_mode:-}" ] || firewall_mode="full"
   [ -n "${outgoing_allow_ip_list:-}" ] || outgoing_allow_ip_list=""
 
   ## Socks Ports for per application circuits.
@@ -247,39 +247,33 @@ output_trim() {
 }
 
 firewall_mode_detection() {
-  ## If firewall_mode is explicitly set to "full" by user configuration,
-  ## honor that and skip detection. This allows users to force full mode
-  ## and disable timesync-fail-closed entirely.
-  if [ "${firewall_mode}" = "full" ]; then
-    output_cmd "OK: Skipping firewall mode detection since already set to 'full'."
-    output_cmd "OK: (Full torified network access allowed.)"
-    return 0
-  fi
-
-  ## For all other cases (including firewall_mode="timesync-fail-closed"
-  ## or empty from config), run detection. This ensures
-  ## timesync-fail-closed mode can transition to full mode when sdwdate
-  ## succeeds and the firewall is restarted.
+  ## firewall_mode: user configuration setting.
+  ##   "full" (default) - timesync-fail-closed disabled, always full mode.
+  ##   "timesync-fail-closed" - user opt-in to restrict network until
+  ##     sdwdate succeeds. Transitions to full mode automatically.
   ##
-  ## NOTE: firewall_mode from config is intentionally overridden here.
-  ## The config variable name "firewall_mode" is used to opt out of
-  ## timesync-fail-closed (by setting "full"), not to force a permanent
-  ## mode. Detection always determines the actual runtime mode based on
-  ## sdwdate status files.
+  ## firewall_mode_detected: internal runtime state, determined here.
+  ##   This is what all runtime firewall rules check against.
 
-  ## Run Whonix firewall in full mode if sdwdate already succeeded.
-  if [ -e /run/sdwdate/first_success ]; then
-    firewall_mode=full
-    output_cmd "OK: (/run/sdwdate/first_success exists.)"
-  elif [ -e /run/sdwdate/success ]; then
-    firewall_mode=full
-    output_cmd "OK: (/run/sdwdate/success exists.)"
+  if [ "${firewall_mode}" = "timesync-fail-closed" ]; then
+    ## User opted in to timesync-fail-closed mode.
+    ## Detect actual runtime state based on sdwdate status files.
+    if [ -e /run/sdwdate/first_success ]; then
+      firewall_mode_detected=full
+      output_cmd "OK: (/run/sdwdate/first_success exists.)"
+    elif [ -e /run/sdwdate/success ]; then
+      firewall_mode_detected=full
+      output_cmd "OK: (/run/sdwdate/success exists.)"
+    else
+      ## sdwdate has not yet succeeded.
+      firewall_mode_detected=timesync-fail-closed
+    fi
   else
-    ## sdwdate has not yet succeeded.
-    firewall_mode=timesync-fail-closed
+    ## Default: full mode. No timesync-fail-closed.
+    firewall_mode_detected=full
   fi
 
-  if [ "$firewall_mode" = "timesync-fail-closed" ]; then
+  if [ "$firewall_mode_detected" = "timesync-fail-closed" ]; then
     output_cmd "OK: Running in timesync-fail-closed mode."
     output_cmd "OK: (Only local Tor control port connections and torified sdwdate allowed.)"
   else
@@ -415,7 +409,7 @@ nft_input_rules_gateway() {
     fi
   done
 
-  if [ "$firewall_mode" = "timesync-fail-closed" ]; then
+  if [ "$firewall_mode_detected" = "timesync-fail-closed" ]; then
     true "timesync-fail-closed mode, skipping rest of function ${FUNCNAME[0]}"
     return 0
   fi
@@ -566,7 +560,7 @@ nft_forward_gateway() {
 }
 
 qubes_gateway() {
-  if [ "$firewall_mode" = "timesync-fail-closed" ]; then
+  if [ "$firewall_mode_detected" = "timesync-fail-closed" ]; then
     true "timesync-fail-closed mode, skipping rest of function ${FUNCNAME[0]}"
     return 0
   fi
@@ -574,6 +568,9 @@ qubes_gateway() {
   if [ -e /run/qubes/this-is-netvm ] || [ -e /run/qubes/this-is-proxyvm ]; then
     ## The same for squid from qubes-updates-cache, which runs as user vm-updates.
     if getent passwd vm-updates > /dev/null; then
+      ## IPv4: 'ip protocol' matches the IPv4 header protocol field.
+      ## IPv6: 'ip6 nexthdr' matches the IPv6 next header field.
+      ## ('ip6 protocol' is not valid nftables syntax.)
       $nftables_cmd add rule inet nat output ip protocol udp skuid vm-updates ct state new counter dnat to "127.0.0.1:${DNS_PORT_GATEWAY}"
       $nftables_cmd add rule inet nat output ip6 nexthdr udp skuid vm-updates ct state new counter dnat to "[::1]:${DNS_PORT_GATEWAY}"
       $nftables_cmd add rule inet nat output ip protocol tcp skuid vm-updates ct state new counter dnat to "127.0.0.1:${TRANS_PORT_GATEWAY}"

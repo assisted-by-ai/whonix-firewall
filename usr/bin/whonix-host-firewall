@@ -168,6 +168,7 @@ VPN_FIREWALL
 VPN_INTERFACE
 VPN_SERVERS
 firewall_mode
+firewall_mode_detected
 info_enabled
 source_only
 "
