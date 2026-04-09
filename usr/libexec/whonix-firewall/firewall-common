@@ -352,6 +352,9 @@ nft_input_rules_gateway() {
   ## MTU than 1500 assumed by Whonix-Gateway
   if [ "$GATEWAY_ALLOW_INCOMING_ICMP_FRAG_NEEDED" = "1" ]; then
     $nftables_cmd add rule inet filter input icmp type destination-unreachable icmp code frag-needed ct state related counter accept
+    ## ICMPv6 Packet Too Big is the IPv6 equivalent of ICMPv4 frag-needed.
+    ## Required for IPv6 Path MTU Discovery.
+    $nftables_cmd add rule inet filter input icmpv6 type packet-too-big ct state related counter accept
   fi
 
   # Accept ICMPv6 neighbor discovery.
@@ -573,9 +576,9 @@ qubes_gateway() {
     ## The same for squid from qubes-updates-cache, which runs as user vm-updates.
     if getent passwd vm-updates > /dev/null; then
       $nftables_cmd add rule inet nat output ip protocol udp skuid vm-updates ct state new counter dnat to "127.0.0.1:${DNS_PORT_GATEWAY}"
-      $nftables_cmd add rule inet nat output ip6 protocol udp skuid vm-updates ct state new counter dnat to "[::1]:${DNS_PORT_GATEWAY}"
+      $nftables_cmd add rule inet nat output ip6 nexthdr udp skuid vm-updates ct state new counter dnat to "[::1]:${DNS_PORT_GATEWAY}"
       $nftables_cmd add rule inet nat output ip protocol tcp skuid vm-updates ct state new counter dnat to "127.0.0.1:${TRANS_PORT_GATEWAY}"
-      $nftables_cmd add rule inet nat output ip6 protocol tcp skuid vm-updates ct state new counter dnat to "[::1]:${TRANS_PORT_GATEWAY}"
+      $nftables_cmd add rule inet nat output ip6 nexthdr tcp skuid vm-updates ct state new counter dnat to "[::1]:${TRANS_PORT_GATEWAY}"
       ## TODO: IPv6: test
     fi
   fi
