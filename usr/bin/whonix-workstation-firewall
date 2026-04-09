@@ -122,8 +122,8 @@ nft_defaults() {
   $nftables_cmd add table inet filter
   $nftables_cmd add table inet nat
 
-  $nftables_cmd add chain inet nat output
-  $nftables_cmd add chain inet nat prerouting
+  $nftables_cmd "add chain inet nat output { type nat hook output priority -100; }"
+  $nftables_cmd "add chain inet nat prerouting { type nat hook prerouting priority -100; }"
 
   ## Set secure defaults.
   $nftables_cmd "add chain inet filter input { type filter hook input priority 0; policy drop; }"
@@ -416,7 +416,7 @@ nft_output() {
       else
         local outgoing_allow_ip_item
         for outgoing_allow_ip_item in $outgoing_allow_ip_list; do
-          true "firewall_mode is $firewall_mode and outgoing_allow_ip_list is set, allowing IP: $outgoing_allow_ip_list"
+          true "firewall_mode is $firewall_mode and outgoing_allow_ip_list is set, allowing IP: $outgoing_allow_ip_item"
           $nftables_cmd add rule inet filter output ip protocol tcp ip daddr "$outgoing_allow_ip_item" counter accept
           $nftables_cmd add rule inet filter output ip6 protocol tcp ip6 daddr "::ffff:$outgoing_allow_ip_item" counter accept
           ## TODO: IPv6 test
