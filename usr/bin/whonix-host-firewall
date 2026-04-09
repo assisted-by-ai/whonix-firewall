@@ -35,6 +35,11 @@ variables_defaults(){
 
 nft_defaults(){
   ## Flush old rules.
+  ## Using delete (not flush) to ensure a clean slate.
+  ## flush only removes rules but keeps chains intact,
+  ## which could leave stale chains from previous configurations.
+  ## delete removes the entire table including all chains.
+  ## Pattern: add (ensure exists) -> delete -> add (recreate empty).
   $nftables_cmd add table inet nat
   $nftables_cmd add table inet filter
   $nftables_cmd add table ip6 nat
@@ -97,7 +102,10 @@ nft_output(){
   ## Existing connections are accepted.
   $nftables_cmd add rule inet filter output ct state established counter accept
 
-  # Accept ICMPv6 neighbor discovery.
+  ## Accept ICMPv6 neighbor discovery.
+  ## Required for IPv6 connectivity: without ND, the host cannot discover
+  ## routers or resolve link-layer addresses of IPv6 neighbors.
+  ## Matches the gateway and workstation firewall behavior.
   $nftables_cmd add rule inet filter output icmpv6 type "{ nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, nd-redirect }" counter accept
 
   if [ "$VPN_FIREWALL" = "1" ]; then
@@ -126,6 +134,10 @@ nft_output(){
   fi
 
   ## clearnet user is allowed to connect any outside target.
+  ## This rule must be in the filter table (not nat) because the filter
+  ## output chain policy is drop - only filter accept rules allow traffic
+  ## through. A nat table accept only controls NAT evaluation, not
+  ## whether the packet is allowed.
   if [ -n "$CLEARNET_USER" ]; then
     $nftables_cmd add rule inet filter output skuid "$CLEARNET_USER" counter accept
   fi

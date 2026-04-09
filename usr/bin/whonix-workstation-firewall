@@ -122,8 +122,8 @@ nft_defaults() {
   $nftables_cmd add table inet filter
   $nftables_cmd add table inet nat
 
-  $nftables_cmd "add chain inet nat output { type nat hook output priority -100; }"
-  $nftables_cmd "add chain inet nat prerouting { type nat hook prerouting priority -100; }"
+  $nftables_cmd add chain inet nat output
+  $nftables_cmd add chain inet nat prerouting
 
   ## Set secure defaults.
   $nftables_cmd "add chain inet filter input { type filter hook input priority 0; policy drop; }"
