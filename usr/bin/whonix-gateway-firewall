@@ -59,7 +59,6 @@ variables_defaults() {
 
   if [ ! "$WORKSTATION_ALLOW_SOCKSIFIED" = "1" ]; then
     output_cmd "INFO: WORKSTATION_ALLOW_SOCKSIFIED='${WORKSTATION_ALLOW_SOCKSIFIED}', Socks Ports will not be opened"
-    return 0
   fi
 
   NO_NAT_USERS+=" $CLEARNET_USER"

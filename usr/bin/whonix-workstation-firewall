@@ -426,10 +426,10 @@ nft_output() {
 
     ## Log.
     #$nftables_cmd add rule inet filter output counter log prefix \"Whonix_blocked_output4:\"
-
-    ## Reject all other outgoing traffic.
-    $nftables_cmd add rule inet filter output counter reject
   fi
+
+  ## Reject all other outgoing traffic.
+  $nftables_cmd add rule inet filter output counter reject
 }
 
 variable_list="
