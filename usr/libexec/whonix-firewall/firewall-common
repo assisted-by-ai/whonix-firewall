@@ -111,8 +111,7 @@ print_variables() {
   local item
   # shellcheck disable=SC2154
   for item in ${variable_list}; do
-    eval value='$'"${item}"
-    # shellcheck disable=SC2154
+    value="${!item}"
     output_cmd "INFO: ${item}=$(output_trim "${value}")"
   done
 }
@@ -248,19 +247,25 @@ output_trim() {
 }
 
 firewall_mode_detection() {
-  if [ -n "${firewall_mode}" ]; then
-    output_cmd "OK: Skipping firewall mode detection since already set to '$firewall_mode'."
-    if [ "$firewall_mode" = "timesync-fail-closed" ]; then
-      output_cmd "OK: (Only local Tor control port connections and torified sdwdate allowed.)"
-      return 0
-    elif [ "$firewall_mode" = "full" ]; then
-      output_cmd "OK: (Full torified network access allowed.)"
-      return 0
-    else
-      output_cmd "ERROR: firewall_mode must be set to either 'full' or 'timesync-fail-closed'."
-      error_handler
-    fi
+  ## If firewall_mode is explicitly set to "full" by user configuration,
+  ## honor that and skip detection. This allows users to force full mode
+  ## and disable timesync-fail-closed entirely.
+  if [ "${firewall_mode}" = "full" ]; then
+    output_cmd "OK: Skipping firewall mode detection since already set to 'full'."
+    output_cmd "OK: (Full torified network access allowed.)"
+    return 0
   fi
+
+  ## For all other cases (including firewall_mode="timesync-fail-closed"
+  ## or empty from config), run detection. This ensures
+  ## timesync-fail-closed mode can transition to full mode when sdwdate
+  ## succeeds and the firewall is restarted.
+  ##
+  ## NOTE: firewall_mode from config is intentionally overridden here.
+  ## The config variable name "firewall_mode" is used to opt out of
+  ## timesync-fail-closed (by setting "full"), not to force a permanent
+  ## mode. Detection always determines the actual runtime mode based on
+  ## sdwdate status files.
 
   ## Run Whonix firewall in full mode if sdwdate already succeeded.
   if [ -e /run/sdwdate/first_success ]; then
@@ -269,22 +274,16 @@ firewall_mode_detection() {
   elif [ -e /run/sdwdate/success ]; then
     firewall_mode=full
     output_cmd "OK: (/run/sdwdate/success exists.)"
-  ## /run/whonix_firewall/first_run_current_boot.status already exists,
-  ## therefore have Whonix firewall run in full mode.
-  elif [ -e /run/whonix_firewall/first_run_current_boot.status ]; then
-    firewall_mode=full
-    output_cmd "OK: (/run/whonix_firewall/first_run_current_boot.status exists.)"
   else
-    ## /run/whonix_firewall/first_run_current_boot.status does not yet exist,
-    ## therefore return 'yes, timesync-fail-closed'.
+    ## sdwdate has not yet succeeded.
     firewall_mode=timesync-fail-closed
   fi
 
   if [ "$firewall_mode" = "timesync-fail-closed" ]; then
-    output_cmd "OK: First run during current boot, therefore running in timesync-fail-closed mode."
+    output_cmd "OK: Running in timesync-fail-closed mode."
     output_cmd "OK: (Only local Tor control port connections and torified sdwdate allowed.)"
   else
-    output_cmd "OK: Consecutive run during current boot, therefore running in full mode."
+    output_cmd "OK: Running in full mode."
     output_cmd "OK: (Full torified network access allowed.)"
   fi
 }
