@@ -287,9 +287,11 @@ firewall_mode_detection() {
       ## sdwdate has not yet succeeded.
       firewall_mode_detected=timesync-fail-closed
     fi
-  else
-    ## Default: full mode. No timesync-fail-closed.
+  elif [ "${firewall_mode}" = "full" ]; then
     firewall_mode_detected=full
+  else
+    output_cmd "ERROR: firewall_mode must be 'full' or 'timesync-fail-closed', got '${firewall_mode}'."
+    error_handler
   fi
 
   if [ "$firewall_mode_detected" = "timesync-fail-closed" ]; then
