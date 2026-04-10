@@ -31,6 +31,26 @@ variables_defaults(){
 
   [ -n "${GATEWAY_ALLOW_INCOMING_FLASHPROXY:-}" ] || GATEWAY_ALLOW_INCOMING_FLASHPROXY="0"
   [ -n "${FLASHPROXY_PORT:-}" ] || FLASHPROXY_PORT="9000"
+
+  ## Variables required by nft_input_rules_gateway() in full mode.
+  [ -n "${GATEWAY_ALLOW_INCOMING_DIR_PORT:-}" ] || GATEWAY_ALLOW_INCOMING_DIR_PORT=0
+  [ -n "${GATEWAY_ALLOW_INCOMING_OR_PORT:-}" ] || GATEWAY_ALLOW_INCOMING_OR_PORT=0
+  [ -n "${DIR_PORT:-}" ] || DIR_PORT=80
+  [ -n "${OR_PORT:-}" ] || OR_PORT=443
+  [ -n "${CONTROL_PORT_FILTER_PROXY_ENABLE:-}" ] || CONTROL_PORT_FILTER_PROXY_ENABLE=0
+  [ -n "${WORKSTATION_ALLOW_SOCKSIFIED:-}" ] || WORKSTATION_ALLOW_SOCKSIFIED=0
+  [ -n "${WORKSTATION_TRANSPARENT_DNS:-}" ] || WORKSTATION_TRANSPARENT_DNS=0
+  [ -n "${WORKSTATION_TRANSPARENT_TCP:-}" ] || WORKSTATION_TRANSPARENT_TCP=0
+
+  ## Internal/tunnel interface (not used on host but required by shared functions).
+  [ -n "${INT_IF:-}" ] || INT_IF="eth1"
+  [ -n "${INT_TIF:-}" ] || INT_TIF="eth1"
+
+  ## Ports (not used on host but required by shared functions).
+  [ -n "${TRANS_PORT_WORKSTATION:-}" ] || TRANS_PORT_WORKSTATION="9040"
+  [ -n "${DNS_PORT_WORKSTATION:-}" ] || DNS_PORT_WORKSTATION="5300"
+  [ -n "${TRANS_PORT_GATEWAY:-}" ] || TRANS_PORT_GATEWAY="9041"
+  [ -n "${DNS_PORT_GATEWAY:-}" ] || DNS_PORT_GATEWAY="5400"
 }
 
 nft_defaults(){
