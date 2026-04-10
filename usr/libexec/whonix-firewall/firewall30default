@@ -21,6 +21,8 @@ sudo_error_exit_if_unavailable
 
 if [ -f "/usr/share/anon-gw-base-files/gateway" ]; then
   gsudoedit /etc/whonix_firewall.d/30_whonix_gateway_default.conf
+elif [ -f "/usr/share/libvirt-dist/marker" ]; then
+  gsudoedit /etc/whonix_firewall.d/30_whonix_host_default.conf
 else
   gsudoedit /etc/whonix_firewall.d/30_whonix_workstation_default.conf
 fi
