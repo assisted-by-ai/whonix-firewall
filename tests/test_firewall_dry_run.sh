@@ -20,6 +20,11 @@ set -e -o pipefail
 ## Helpers
 ## ---------------------------------------------------------------------------
 
+## Timeout wrapper for all privileged commands.
+## Prevents hangs from accidentally loading firewall rules that block
+## the connection, or from other unexpected blocking operations.
+timeout_wrapper="timeout --kill-after=5 30"
+
 tests_run=0
 tests_passed=0
 tests_failed=0
@@ -158,6 +163,22 @@ save_nft_script() {
   fi
 }
 
+## Validate nft script syntax without loading into kernel.
+nft_syntax_check() {
+  local name="$1"
+  if [ ! -f "$nft_script" ]; then
+    fail "${name}: nft script not found for syntax check"
+    return
+  fi
+  local check_exit=0
+  $timeout_wrapper nft --check --file "$nft_script" 2>/dev/null || check_exit=$?
+  if [ "$check_exit" -eq 0 ]; then
+    pass "${name}: nft --check passed"
+  else
+    fail "${name}: nft --check failed (exit ${check_exit})"
+  fi
+}
+
 ## ---------------------------------------------------------------------------
 ## Test cases
 ## ---------------------------------------------------------------------------
@@ -171,13 +192,14 @@ run_test() {
   rm -f /run/whonix_firewall/first_run_current_boot.status
   rm -f /run/whonix_firewall/consecutive_run.status
   local cmd_exit=0
-  bash -c "$cmd" >/dev/null 2>&1 || cmd_exit=$?
+  $timeout_wrapper bash -c "$cmd" >/dev/null 2>&1 || cmd_exit=$?
   if [ "$cmd_exit" -eq 0 ]; then
     pass "${name}: exit 0"
   else
     fail "${name}: exited ${cmd_exit}"
   fi
   save_nft_script "$name"
+  nft_syntax_check "$name"
 }
 
 test_gateway_default() {
